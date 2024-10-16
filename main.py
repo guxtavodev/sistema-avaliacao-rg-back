@@ -4,7 +4,7 @@ from flask_cors import CORS
 import os
 
 app = Flask(__name__)
-app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///avaliacoes4.db'
+app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///avaliacoes5.db'
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 db = SQLAlchemy(app)
 CORS(app)  # Habilita CORS para permitir requisições do frontend
