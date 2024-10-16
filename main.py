@@ -1,12 +1,33 @@
 from flask import Flask, request, jsonify
 from flask_sqlalchemy import SQLAlchemy
 from flask_cors import CORS
+import os
 
 app = Flask(__name__)
-app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///avaliacoes2.db'
+app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///avaliacoes3.db'
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 db = SQLAlchemy(app)
 CORS(app)  # Habilita CORS para permitir requisições do frontend
+
+# Função para verificar credenciais
+def verificar_credenciais(email, senha):
+    diretor_email = os.getenv("DIRETOR_EMAIL")
+    diretor_senha = os.getenv("DIRETOR_SENHA")
+    return email == diretor_email and senha == diretor_senha
+
+# Endpoint de login
+@app.route('/login', methods=['POST'])
+def login():
+    data = request.get_json()
+    print(data)
+    email = data.get("email")
+    senha = data.get("senha")
+
+    if verificar_credenciais(email, senha):
+        return jsonify({"msg": "Login bem-sucedido!"}), 200
+    else:
+        return jsonify({"msg": "Credenciais inválidas!"}), 401
+
 
 # Tabela de associação entre Professores e Turmas
 professor_turma = db.Table('professor_turma',
@@ -292,6 +313,47 @@ def add_funcao():
     db.session.commit()
     return jsonify({'message': 'Função adicionada com sucesso!'}), 201
 
+@app.route('/relatorio', methods=['GET'])
+def get_relatorio():
+        # Coletando os dados dos professores
+        professores = Professor.query.all()
+        relatorio_professores = []
+        for professor in professores:
+            avaliacoes = AvaliacaoProfessor.query.filter_by(professor_id=professor.id).all()
+            perguntas = {f'Pergunta {i}': {"A": 0, "B": 0, "C": 0, "D": 0} for i in range(1, 15)}  # 14 perguntas
+            for avaliacao in avaliacoes:
+                for i in range(1, 15):
+                    resposta = getattr(avaliacao, f'avaliacao_{i}', None)
+                    if resposta in perguntas[f'Pergunta {i}']:
+                        perguntas[f'Pergunta {i}'][resposta] += 1
+            relatorio_professores.append({
+                "id": professor.id,
+                "nome": professor.nome,
+                "respostas": perguntas,
+            })
+
+        # Coletando os dados dos funcionários
+        funcionarios = Funcionario.query.all()
+        relatorio_funcionarios = []
+        for funcionario in funcionarios:
+            avaliacoes = AvaliacaoFuncionario.query.filter_by(funcionario_id=funcionario.id).all()
+            perguntas = {f'Pergunta {i}': {"A": 0, "B": 0, "C": 0, "D": 0} for i in range(1, 6)}  # 5 perguntas
+            for avaliacao in avaliacoes:
+                for i in range(1, 6):
+                    resposta = getattr(avaliacao, f'avaliacao_{i}', None)
+                    if resposta in perguntas[f'Pergunta {i}']:
+                        perguntas[f'Pergunta {i}'][resposta] += 1
+            relatorio_funcionarios.append({
+                "id": funcionario.id,
+                "nome": funcionario.nome,
+                "respostas": perguntas,
+            })
+
+        # Retornar um JSON com os dados agregados de professores e funcionários
+        return jsonify({
+            "professores": relatorio_professores,
+            "funcionarios": relatorio_funcionarios
+        })
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=8080)
